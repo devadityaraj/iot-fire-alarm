@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AlertPopup } from '@/components/AlertPopup'
+import { WelcomePopup } from '@/components/WelcomePopup'
 import { useFirebaseListener } from '@/hooks/useFirebaseListener'
 import { useAlertAudio } from '@/hooks/useAlertAudio'
 import { formatSmokePercentage } from '@/lib/utils'
@@ -89,6 +90,7 @@ function MobileDashboardContent() {
         } rounded-full blur-3xl pointer-events-none`}
       />
 
+      <WelcomePopup />
       <AlertPopup
         isOpen={showAlertPopup}
         data={data}
