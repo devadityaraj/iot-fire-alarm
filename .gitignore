@@ -1,0 +1,24 @@
+# JetBrains IDE settings
+.idea/
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Dependencies & Build output
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# All Environment variable files (contains sensitive API keys)
+.env
+.env.*
+!.env.example
+
+# C++ / ESP32 build artifacts
+.pio/
+.vscode/
+*.bin
+*.elf
