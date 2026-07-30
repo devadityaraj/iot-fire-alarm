@@ -20,8 +20,7 @@ void begin() {
   if (g_config.telegram.botToken.length() > 0) {
     s_bot = new UniversalTelegramBot(g_config.telegram.botToken, s_secureClient);
     if (!s_bot) {
-      // BUG-C FIX: allocation can fail under heap fragmentation after many reconnects.
-      // Log clearly so the failure is visible on Serial rather than silently disabling Telegram.
+
       LOG_E(TAG, "OOM: failed to allocate UniversalTelegramBot — Telegram disabled until next reconnect");
     }
   }
@@ -49,4 +48,4 @@ void tick() {
   }
 }
 
-}  // namespace TelegramManager
+}  

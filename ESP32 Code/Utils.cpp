@@ -98,18 +98,18 @@ bool consumeRemoteReset() {
   return pending;
 }
 
-}  // namespace SharedState
+}  
 
 bool pushFirebaseUpdate(const FirebaseUpdateItem &item) {
   if (!g_firebaseQueue) return false;
-  // Discard while offline — no history accumulated when disconnected
+  
   if (!SharedState::snapshot().wifiConnected) return false;
   return xQueueSend(g_firebaseQueue, &item, 0) == pdTRUE;
 }
 
 bool pushTelegramMessage(const String &text) {
   if (!g_config.telegram.isValid() || !g_telegramQueue) return false;
-  // Discard while offline — no history accumulated when disconnected
+  
   if (!SharedState::snapshot().wifiConnected) return false;
   TelegramMessageItem item{};
   strncpy(item.text, text.c_str(), sizeof(item.text) - 1);

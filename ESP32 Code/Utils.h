@@ -33,9 +33,9 @@ struct SystemStatus {
   uint32_t uptimeSeconds = 0;
   uint32_t lastAlertEpoch = 0;
   bool firebaseAuthed = false;
-  bool firebaseAuthFailed = false;  // auth (email/password) failed
-  bool firebaseDbFailed   = false;  // last RTDB write failed
-  bool remoteResetRequested = false; // set by Firebase when alert 1->0 from dashboard
+  bool firebaseAuthFailed = false;  
+  bool firebaseDbFailed   = false;  
+  bool remoteResetRequested = false; 
 };
 
 struct FirebaseUpdateItem {
@@ -64,8 +64,8 @@ void setSensorData(float temp, float hum, int smoke, bool flame);
 void setAlert(bool active, AlertType type, uint32_t epoch);
 void setUptime(uint32_t seconds);
 void setRemoteResetRequested(bool val);
-bool consumeRemoteReset();  // returns true (and clears flag) if a remote reset is pending
-}  // namespace SharedState
+bool consumeRemoteReset();  
+}  
 
 extern QueueHandle_t g_firebaseQueue;
 extern QueueHandle_t g_telegramQueue;

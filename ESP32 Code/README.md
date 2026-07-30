@@ -33,21 +33,22 @@ Three independent alarm triggers with priority ordering:
 
 - **Priority escalation**: if a higher-priority event is detected while a lower one is active, the alarm escalates immediately.
 - **5 independent flame channels** — any single sensor is enough to trigger FIRE.
-- **Gas sensor warm-up**: MQ-2 analog reads are suppressed for the first **10 seconds** after boot to avoid false alarms from sensor power-on noise.
+- **Gas sensor warm-up**: MQ-2 analog reads are hard-disabled and `smokeRaw` is clamped to 0 for the first **10 seconds** after boot to prevent false alarms during sensor stabilization.
 
 ---
 
-### 🔄 Alarm Reset — Three Methods
+### 🔄 Alarm Reset — Reset Methods & Latching Behavior
 
-All reset paths enter the same **20-second RESET_COOLDOWN** window. During cooldown, new alarms cannot trigger. After 20 s, the system returns to STABLE and sends a "Status OK" notification.
+Once triggered, the alarm **remains latched in ACTIVE state** (buzzer ringing and red LEDs active) until explicitly reset. It does **NOT** auto-reset when sensor readings return to normal.
 
-| Method | Trigger |
-|---|---|
-| **Physical Button** | Press GPIO 13 button while alarm is ringing |
-| **Remote Dashboard** | Set `alert = 0` in Firebase RTDB from the mobile app/dashboard |
-| **Auto-Reset** | All sensor readings return to safe levels automatically |
+All reset paths enter a **20-second RESET_COOLDOWN** window. During cooldown, new alarms cannot trigger. After 20 s, the system returns to STABLE status.
 
-Firebase and Telegram are notified of the reset immediately (not at cooldown end).
+| Method | Trigger | Behavior |
+|---|---|---|
+| **Physical Button** | Press GPIO 13 button | Silences buzzer, sets LEDs to breathing blue, sends Telegram & writes `alert=0` to Firebase immediately |
+| **Remote Dashboard** | Set `alert = 0` in Firebase RTDB | Polled every 3 seconds; when a `1 → 0` transition is detected, stops alarm, enters 20s cooldown, and notifies Telegram |
+
+Firebase and Telegram are notified of the reset immediately upon initiation.
 
 ---
 
@@ -109,15 +110,17 @@ Sends messages to all configured chat IDs:
 
 **Priority order**: ALARM_ACTIVE > RESET_COOLDOWN > SENSOR_ERROR > error overlays > normal status.
 
-#### Internal LED (GPIO 2) Blink Codes
+#### Internal Onboard LED (GPIO 2) Diagnostic Fault Indicator
 
-| State | Pattern |
-|---|---|
-| OFFLINE / BOOT | Slow blink (500 ms) |
-| AUTH_ERROR | Double blink per 1.5 s |
-| DB_ERROR | Triple blink per 1.5 s |
-| SENSOR_ERROR | Fast continuous blink (150 ms) |
-| ONLINE / ALARM / RESET | Solid ON |
+The ESP32 built-in LED (GPIO 2) provides instant visual hardware/system diagnostic status:
+
+| System Condition / Fault | Internal LED Pattern | Description / Meaning |
+|---|---|---|
+| **SENSOR ERROR** | Fast Continuous Blink (150 ms) | Hardware Fault: Both DHT11 and MQ-2 sensors are disconnected or faulty |
+| **FIREBASE DB ERROR** | Triple Blink (per 1.5 s) | Database Fault: RTDB update/write requests are failing |
+| **FIREBASE AUTH ERROR** | Double Blink (per 1.5 s) | Auth Fault: Invalid Firebase API Key / Credentials or rate-limited |
+| **WIFI OFFLINE / BOOTING** | Slow Blink (500 ms) | Network Status: Connecting to WiFi or operating in Offline Mode |
+| **NORMAL ONLINE / ALARM** | Solid ON (HIGH) | System Healthy: Connected and operating normally |
 
 ---
 

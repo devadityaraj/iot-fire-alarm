@@ -68,7 +68,6 @@ static void renderSetupAmber() {
   fillAll(c);
 }
 
-// LEDs 0..(NUM_LEDS-3) stay green at 50%; last 2 LEDs show a red effect.
 static void applyErrorOverlay(bool blink) {
   CRGB green = CRGB::Green;
   green.nscale8_video(Cfg::LED_BRIGHTNESS_HALF);
@@ -76,11 +75,11 @@ static void applyErrorOverlay(bool blink) {
 
   CRGB red = CRGB::Red;
   if (blink) {
-    // Fast blink for DB errors.
+    
     bool on = ((millis() / 200) % 2) == 0;
     red.nscale8_video(on ? 255 : 0);
   } else {
-    // Slow breathing for auth errors.
+    
     uint8_t b = beatsin8(15, 20, 255);
     red.nscale8_video(b);
   }
@@ -90,52 +89,48 @@ static void applyErrorOverlay(bool blink) {
 
 static void updateInternalLedPattern() {
   uint32_t now = millis();
-  bool ledState = false;
+  bool ledState = true;  
 
   switch (s_mode) {
-    case LEDMode::OFFLINE_STABLE:
-    case LEDMode::BOOT_CONNECTING:
-      ledState = ((now / 500) % 2) == 0;  // WiFi error / connecting -> Slow Blink
-      break;
-
     case LEDMode::AUTH_ERROR: {
       uint32_t phase = now % 1500;
-      ledState = (phase < 150) || (phase >= 300 && phase < 450);  // Auth Error -> Double Blink
+      ledState = (phase < 150) || (phase >= 300 && phase < 450);  
       break;
     }
 
     case LEDMode::DB_ERROR: {
       uint32_t phase = now % 1500;
-      ledState = (phase < 120) || (phase >= 240 && phase < 360) || (phase >= 480 && phase < 600);  // DB Error -> Triple Blink
+      ledState = (phase < 120) || (phase >= 240 && phase < 360) || (phase >= 480 && phase < 600);  
       break;
     }
 
     case LEDMode::SENSOR_ERROR:
-      ledState = ((now / 150) % 2) == 0;  // Sensor Fault -> Fast Continuous Blink
+      ledState = ((now / 150) % 2) == 0;  
       break;
 
+    case LEDMode::BOOT_CONNECTING:
+    case LEDMode::OFFLINE_STABLE:
     case LEDMode::ONLINE_STABLE:
     case LEDMode::ALARM_ACTIVE:
     case LEDMode::RESET_BREATHING:
     default:
-      ledState = true;  // Solid HIGH (ON) for non-error operational states
+      ledState = true;  
       break;
   }
 
   digitalWrite(INTERNAL_LED_PIN, ledState ? HIGH : LOW);
 }
 
-// Sensor Fault: Flash strip LEDs 1,2 (indices 0,1) & 7,8 (indices 6,7) RED.
 static void renderSensorError() {
   bool on = ((millis() / 300) % 2) == 0;
   fillAll(CRGB::Black);
   if (on) {
     CRGB red = CRGB::Red;
     red.nscale8_video(Cfg::LED_BRIGHTNESS_HALF);
-    s_leds[0] = red;  // LED 1
-    s_leds[1] = red;  // LED 2
-    s_leds[6] = red;  // LED 7
-    s_leds[7] = red;  // LED 8
+    s_leds[0] = red;  
+    s_leds[1] = red;  
+    s_leds[6] = red;  
+    s_leds[7] = red;  
   }
 }
 
@@ -176,11 +171,11 @@ void tick() {
     case LEDMode::RESET_BREATHING: renderResetBreathing(); break;
     case LEDMode::SETUP_RAINBOW:   renderSetupRainbow();   break;
     case LEDMode::SETUP_AMBER:     renderSetupAmber();     break;
-    case LEDMode::AUTH_ERROR:      applyErrorOverlay(false); break;  // breathing red
-    case LEDMode::DB_ERROR:        applyErrorOverlay(true);  break;  // blinking red
+    case LEDMode::AUTH_ERROR:      applyErrorOverlay(false); break;  
+    case LEDMode::DB_ERROR:        applyErrorOverlay(true);  break;  
     case LEDMode::SENSOR_ERROR:    renderSensorError();    break;
   }
   FastLED.show();
 }
 
-}  // namespace LEDManager
+}  

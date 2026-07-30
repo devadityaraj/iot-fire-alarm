@@ -17,6 +17,6 @@ SensorReadings getReadings();
 bool isSmokeAboveThreshold();
 bool isTempHigh();
 bool isFlameDetected();
-bool isSmokeWarming();   // true during the 10s gas-sensor warm-up window
+bool isSmokeWarming();   
 bool isSensorFault();
-}  // namespace SensorManager
+}  

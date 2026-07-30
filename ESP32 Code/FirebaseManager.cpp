@@ -24,10 +24,9 @@ static uint32_t s_last5sUploadMs = 0;
 static uint32_t s_lastReadyCheckMs = 0;
 static bool s_dbError = false;
 
-// Remote reset detection: poll /device/alert to detect a 1→0 transition from the dashboard
-static int  s_lastRemoteAlertValue = -1;  // -1 = unknown (not yet polled)
+static int  s_lastRemoteAlertValue = -1;  
 static uint32_t s_lastAlertPollMs = 0;
-static FirebaseData s_pollFbdo;           // separate FirebaseData object to avoid clobbering uploads
+static FirebaseData s_pollFbdo;           
 
 static void myTokenStatusCallback(TokenInfo info) {
   if (info.status == token_status_error) {
@@ -39,7 +38,7 @@ static void myTokenStatusCallback(TokenInfo info) {
         msg.indexOf("bad request") >= 0) {
       LOG_W(TAG, "Firebase Auth rate-limited or bad credentials. Pausing auth attempts for 5 minutes.");
       s_authBlocked = true;
-      s_blockedUntilMs = millis() + 300000;  // 5 minute cooldown
+      s_blockedUntilMs = millis() + 300000;  
       s_authed = false;
       SharedState::setFirebaseAuthed(false);
       SharedState::setFirebaseError(true, s_dbError);
@@ -112,9 +111,6 @@ static void uploadAlertItem(const FirebaseUpdateItem &item) {
   s_lastSentHumidity = item.humidity;
   s_lastSentSmoke = item.smokeRaw;
 
-  // BUG 4 FIX: When we write alert=0 ourselves, sync the poll's last-known value
-  // so the 3s poller doesn't see a self-caused 1->0 and trigger a spurious remote reset
-  // on the next alarm cycle.
   if (!item.alertActive) {
     s_lastRemoteAlertValue = 0;
   }
@@ -138,7 +134,6 @@ void begin() {
   s_fbConfig.token_status_callback = myTokenStatusCallback;
   s_fbConfig.max_token_generation_retry = 2;
 
-  // Let WiFiManagerEx handle WiFi reconnects to avoid blocking loops in Firebase library
   Firebase.reconnectWiFi(false);
   Firebase.begin(&s_fbConfig, &s_fbAuth);
   s_initialized = true;
@@ -190,21 +185,19 @@ void tick() {
   if (!s_initialized) return;
 
   if (SensorManager::isSensorFault()) {
-    return;  // Do not connect or send data to Firebase while sensor fault is active
+    return;  
   }
 
   uint32_t now = millis();
 
-  // If auth is blocked due to 400 / TOO_MANY_ATTEMPTS, enforce mandatory 5-min cooldown
   if (s_authBlocked) {
     if (now < s_blockedUntilMs) {
-      return;  // Completely skip checking Firebase.ready() to stop loop
+      return;  
     }
     LOG_I(TAG, "5-minute Firebase auth cooldown finished. Resetting auth block...");
     s_authBlocked = false;
   }
 
-  // Rate-limit status polling to once every 2 seconds
   if (now - s_lastReadyCheckMs < 2000) {
     if (!s_authed) return;
   } else {
@@ -221,11 +214,9 @@ void tick() {
   FirebaseUpdateItem alertItem;
   while (xQueueReceive(g_firebaseQueue, &alertItem, 0) == pdTRUE) {
     uploadAlertItem(alertItem);
-    vTaskDelay(pdMS_TO_TICKS(10));  // Yield to give CPU time to system/idle tasks
+    vTaskDelay(pdMS_TO_TICKS(10));  
   }
 
-  // Poll /device/alert every 3 s so we can detect a remote 1→0 reset from the dashboard.
-  // Only act when the alarm is locally active to avoid spurious resets on normal startup.
   if (everyMs(s_lastAlertPollMs, Cfg::FIREBASE_ALERT_POLL_MS)) {
     if (Firebase.RTDB.getInt(&s_pollFbdo, "/device/alert")) {
       int remoteAlert = s_pollFbdo.intData();
@@ -241,7 +232,6 @@ void tick() {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
-  // Temperature: upload every 5s, only if value changed by > 0.05 °C
   if (everyMs(s_lastTempUploadMs, Cfg::FIREBASE_TEMP_UPLOAD_MS)) {
     SystemStatus st = SharedState::snapshot();
     if (valueChanged(st.temperature, s_lastSentTemp)) {
@@ -252,7 +242,6 @@ void tick() {
     }
   }
 
-  // Humidity + Smoke: upload every 5s; smoke only if changed by >= 50 ADC counts
   if (everyMs(s_last5sUploadMs, Cfg::FIREBASE_HUM_UPLOAD_MS)) {
     SystemStatus st = SharedState::snapshot();
     FirebaseJson json;
@@ -270,4 +259,4 @@ void tick() {
 
 bool isAuthenticated() { return s_authed; }
 
-}  // namespace FirebaseManager
+}  

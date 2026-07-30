@@ -6,4 +6,4 @@ void begin();
 void tick();
 bool isAlarmActive();
 AlertType currentAlertType();
-}  // namespace AlarmManager
+}  

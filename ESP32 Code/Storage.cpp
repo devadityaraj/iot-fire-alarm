@@ -29,8 +29,8 @@ bool loadConfig(DeviceConfig &cfg) {
     for (JsonObject item : wifiDoc.as<JsonArray>()) {
       WiFiCredential cred;
       cred.ssid     = item["ssid"].as<String>();
-      cred.password = item["pass"].as<String>();  // intentionally optional — empty = open network
-      if (cred.ssid.length() > 0) {               // SSID is mandatory; skip malformed entries
+      cred.password = item["pass"].as<String>();  
+      if (cred.ssid.length() > 0) {               
         cfg.wifiList.push_back(cred);
       } else {
         LOG_W(TAG, "Skipping WiFi entry with empty SSID");
@@ -105,9 +105,7 @@ bool saveConfig(const DeviceConfig &cfg) {
   ok &= s_prefs.putString("wifiJson", wifiJson) > 0 || wifiJson == "[]";
   ok &= s_prefs.putString("fbJson", fbJson) > 0;
   ok &= s_prefs.putString("tgJson", tgJson) > 0;
-  // BUG 9 FIX: only mark config as valid if all prior writes succeeded.
-  // Writing valid=true unconditionally would make hasConfiguration() return true
-  // on the next boot even with a corrupt/partial config (e.g. NVS partition full).
+
   if (ok) {
     ok &= s_prefs.putBool("valid", true);
   } else {
@@ -124,4 +122,4 @@ void eraseAll() {
   LOG_I(TAG, "All configuration erased");
 }
 
-}  // namespace Storage
+}  

@@ -7,4 +7,4 @@ bool hasConfiguration();
 bool loadConfig(DeviceConfig &cfg);
 bool saveConfig(const DeviceConfig &cfg);
 void eraseAll();
-}  // namespace Storage
+}  

@@ -14,18 +14,14 @@
 
 static const char *TAG = "TaskManager";
 
-// Returns true if setup mode should be entered.
-// If the button is held, shows amber immediately during the hold window
-// and drives LEDs directly (appTask does not exist yet at this point).
 static bool shouldEnterSetupMode() {
   pinMode(BUTTON_PIN, INPUT_PULLDOWN);
-  vTaskDelay(pdMS_TO_TICKS(50));  // let pull-down settle
+  vTaskDelay(pdMS_TO_TICKS(50));  
 
-  if (!Storage::hasConfiguration()) return true;  // first boot
+  if (!Storage::hasConfiguration()) return true;  
 
-  if (digitalRead(BUTTON_PIN) != HIGH) return false;  // not pressed
+  if (digitalRead(BUTTON_PIN) != HIGH) return false;  
 
-  // Button detected — show amber right away so user gets visual feedback.
   LEDManager::setMode(LEDMode::SETUP_AMBER);
 
   uint32_t holdStart = millis();
@@ -36,28 +32,21 @@ static bool shouldEnterSetupMode() {
     bool pressed = (digitalRead(BUTTON_PIN) == HIGH);
     if (!pressed) {
       if (lastLowMs == 0) lastLowMs = millis();
-      if (millis() - lastLowMs >= GLITCH_TOLERANCE_MS) return false;  // real release
+      if (millis() - lastLowMs >= GLITCH_TOLERANCE_MS) return false;  
     } else {
       lastLowMs = 0;
     }
-    // appTask doesn't exist yet — drive LEDs here directly.
+    
     LEDManager::tick();
     vTaskDelay(pdMS_TO_TICKS(5));
   }
-  return true;  // held for full window
+  return true;  
 }
 
-// LED sequence:
-//   first boot  → rainbow 2s → amber (AP running)
-//   button hold → amber during hold (driven in shouldEnterSetupMode)
-//                 → rainbow 2s → amber (AP running)
-// In both cases appTask doesn't run here, so LEDManager::tick() is called
-// explicitly in every loop to push frames to the strip.
 static void runSetupMode() {
   LOG_I(TAG, "Entering setup mode");
   SharedState::setState(SystemState::SETUP_MODE);
 
-  // Rainbow phase — plays for both first-boot and button-triggered paths.
   LEDManager::setMode(LEDMode::SETUP_RAINBOW);
   uint32_t start = millis();
   while (millis() - start < Cfg::SETUP_RAINBOW_MS) {
@@ -65,7 +54,6 @@ static void runSetupMode() {
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 
-  // Amber: AP is now up, user can release the button and configure.
   LEDManager::setMode(LEDMode::SETUP_AMBER);
   WebPortal::begin();
 
@@ -97,15 +85,13 @@ static void netTask(void *pvParameters) {
   LEDManager::setMode(LEDMode::BOOT_CONNECTING);
 
   if (shouldEnterSetupMode()) {
-    // Keep appTask suspended for the duration of setup so it cannot
-    // steal button edges or overwrite the setup-mode LED state.
+
     if (s_appTaskHandle) vTaskSuspend(s_appTaskHandle);
     runSetupMode();
-    // runSetupMode() never returns (it reboots internally), but be tidy:
+    
     return;
   }
 
-  // Normal boot — start the app task now that setup mode was not requested.
   xTaskCreatePinnedToCore(appTask, "AppTask", 8192, nullptr, 2, &s_appTaskHandle, 1);
 
   SharedState::setState(SystemState::CONNECT_WIFI);
@@ -116,7 +102,6 @@ static void netTask(void *pvParameters) {
     LEDManager::setMode(LEDMode::CONNECTED_BLINK);
     while (!LEDManager::isConnectBlinkDone()) vTaskDelay(pdMS_TO_TICKS(20));
 
-    // Wait for actual Internet access & NTP time sync before calling Firebase Auth
     if (WiFiManagerEx::waitForInternet(8000)) {
       SharedState::setState(SystemState::AUTH_FIREBASE);
       FirebaseManager::begin();
@@ -170,7 +155,7 @@ static void netTask(void *pvParameters) {
 namespace TaskManager {
 
 void begin() {
-  vTaskDelay(pdMS_TO_TICKS(1000));  // 1-second power-on stabilization delay
+  vTaskDelay(pdMS_TO_TICKS(1000));  
 
   esp_task_wdt_config_t twdt_cfg = {
       .timeout_ms = 15000,
@@ -186,13 +171,9 @@ void begin() {
   AlarmManager::begin();
   LEDManager::begin();
 
-  // appTask is created inside netTask *after* the setup-mode check so that
-  // AlarmManager::tick() cannot consume the button edge or override the LED
-  // during the hold-detection window. Only netTask is spawned here.
-  // Pinned to Core 1 so Core 0 remains free for ESP32 WiFi driver & IDLE0 task.
   xTaskCreatePinnedToCore(netTask, "NetTask", 16384, nullptr, 1, nullptr, 1);
 
   LOG_I(TAG, "Firmware %s started", Cfg::FIRMWARE_VERSION);
 }
 
-}  // namespace TaskManager
+}  

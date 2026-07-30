@@ -6,4 +6,4 @@ void begin();
 bool authenticate();
 void tick();
 bool isAuthenticated();
-}  // namespace FirebaseManager
+}  

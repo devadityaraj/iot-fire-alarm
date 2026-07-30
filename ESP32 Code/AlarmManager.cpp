@@ -14,7 +14,7 @@ static uint32_t s_resetStartedMs = 0;
 
 static bool s_buzzerOn = false;
 
-static bool s_lastButtonReading = LOW;   // LOW = idle for active-HIGH button
+static bool s_lastButtonReading = LOW;   
 static bool s_buttonStableState = LOW;
 static uint32_t s_lastDebounceMs = 0;
 
@@ -25,8 +25,6 @@ static void setBuzzer(bool on) {
   }
 }
 
-// Returns true on the debounced rising edge (LOW→HIGH) of the button.
-// Button is active-HIGH: HIGH = pressed, LOW = idle.
 static bool detectButtonPressEdge() {
   bool reading = digitalRead(BUTTON_PIN);
   if (reading != s_lastButtonReading) {
@@ -37,13 +35,14 @@ static bool detectButtonPressEdge() {
   if ((millis() - s_lastDebounceMs) > Cfg::BUTTON_DEBOUNCE_MS) {
     if (reading != s_buttonStableState) {
       s_buttonStableState = reading;
-      if (s_buttonStableState == HIGH) return true;  // rising edge = press
+      if (s_buttonStableState == HIGH) return true;  
     }
   }
   return false;
 }
 
 static AlertType evaluateCandidateAlertType() {
+  if (SensorManager::isSensorFault()) return AlertType::NONE;  
   if (SensorManager::isFlameDetected()) return AlertType::FIRE;
   if (SensorManager::isSmokeAboveThreshold()) return AlertType::SMOKE;
   if (SensorManager::isTempHigh()) return AlertType::HIGH_TEMP;
@@ -55,7 +54,7 @@ static String buildAlertMessage(AlertType type) {
     case AlertType::FIRE:
       return "FIRE ALERT: Flame detected. Immediate action required.";
     case AlertType::SMOKE:
-      return "SMOKE ALERT: Smoke level above safe threshold.";
+      return "SMOKE ALERT: Smoke is detected, please check.";
     case AlertType::HIGH_TEMP:
       return "HIGH TEMPERATURE ALERT: Temperature exceeded safe limit.";
     default:
@@ -77,8 +76,6 @@ static void queueFirebaseAlert(bool active, AlertType type, uint32_t epoch) {
   pushFirebaseUpdate(item);
 }
 
-// Sends alarm notification immediately. Called only on first trigger or priority escalation
-// so Firebase and Telegram are notified exactly once per alarm event, not on every tick.
 static void notify() {
   uint32_t epoch = nowEpoch();
   queueFirebaseAlert(true, s_alertType, epoch);
@@ -86,10 +83,8 @@ static void notify() {
   SharedState::setAlert(true, s_alertType, epoch);
 }
 
-// BUG-B + BUG-F FIX: accepts a log reason and Telegram message so each call site
-// provides its own text. Prevents double-messages and makes Serial logs accurate.
 static void triggerReset(const char* logReason, const char* telegramMsg) {
-  LOG_I(TAG, "Alarm reset [%s] - entering 20s cooldown window", logReason);
+  LOG_I(TAG, "Alarm reset [%s]", logReason);
   s_phase = AlarmPhase::RESET_COOLDOWN;
   s_alertType = AlertType::NONE;
   s_resetStartedMs = millis();
@@ -113,8 +108,7 @@ static void updateBuzzer() {
 }
 
 static void updateLed() {
-  // BUG 3 FIX: ACTIVE and RESET_COOLDOWN take priority over sensor fault.
-  // A DHT dropout during an active fire must not hide the alarm LED pattern.
+
   if (s_phase == AlarmPhase::ACTIVE) {
     LEDManager::setMode(LEDMode::ALARM_ACTIVE);
     return;
@@ -130,9 +124,9 @@ static void updateLed() {
   SystemStatus st = SharedState::snapshot();
   if (st.state == SystemState::ONLINE || st.state == SystemState::OFFLINE) {
     if (st.wifiConnected && st.firebaseAuthFailed) {
-      LEDManager::setMode(LEDMode::AUTH_ERROR);  // slow breathing red on last 2 LEDs
+      LEDManager::setMode(LEDMode::AUTH_ERROR);  
     } else if (st.wifiConnected && st.firebaseDbFailed) {
-      LEDManager::setMode(LEDMode::DB_ERROR);    // fast blinking red on last 2 LEDs
+      LEDManager::setMode(LEDMode::DB_ERROR);    
     } else {
       LEDManager::setMode(st.offlineMode ? LEDMode::OFFLINE_STABLE : LEDMode::ONLINE_STABLE);
     }
@@ -142,7 +136,7 @@ static void updateLed() {
 namespace AlarmManager {
 
 void begin() {
-  // Active-HIGH button: use INPUT_PULLDOWN so the pin sits at LOW when idle.
+  
   pinMode(BUTTON_PIN, INPUT_PULLDOWN);
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
@@ -154,9 +148,6 @@ void tick() {
     triggerReset("button", "Alarm Reset: button pressed, entering 20s cooldown.");
   }
 
-  // Remote reset: dashboard set alert=0 while alarm was ringing.
-  // BUG 1 FIX: check phase FIRST, then consume the flag — otherwise consumeRemoteReset()
-  // clears the flag even when we can't act on it (e.g. already in RESET_COOLDOWN).
   if (s_phase == AlarmPhase::ACTIVE && SharedState::consumeRemoteReset()) {
     triggerReset("remote dashboard", "Alarm Reset: stopped remotely via dashboard, entering 20s cooldown.");
   }
@@ -170,7 +161,7 @@ void tick() {
       pushTelegramMessage("System Restored: Status OK.");
       SharedState::setAlert(false, AlertType::NONE, epoch);
     }
-  } else {
+  } else if (!SensorManager::isSensorFault()) {
     AlertType candidate = evaluateCandidateAlertType();
     if (candidate != AlertType::NONE) {
       bool isNewAlert   = (s_phase == AlarmPhase::STABLE);
@@ -178,16 +169,12 @@ void tick() {
                            (alertTypePriority(candidate) > alertTypePriority(s_alertType));
 
       if (isNewAlert || isEscalation) {
-        // Notify once on trigger or priority escalation — no keepalive repeat.
+        
         s_phase = AlarmPhase::ACTIVE;
         s_alertType = candidate;
         notify();
       }
-      // No else: while alarm stays at the same priority, buzzer+LED handle it locally.
-      // Firebase and Telegram are NOT spammed while the alarm is ringing.
-    } else if (s_phase == AlarmPhase::ACTIVE) {
-      // All sensors returned to safe levels — auto-reset.
-      triggerReset("sensors cleared", "Alarm Auto-Reset: all sensor readings returned to safe levels.");
+
     }
   }
 
@@ -198,4 +185,4 @@ void tick() {
 bool isAlarmActive() { return s_phase == AlarmPhase::ACTIVE; }
 AlertType currentAlertType() { return s_alertType; }
 
-}  // namespace AlarmManager
+}  

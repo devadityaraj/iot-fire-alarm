@@ -5,4 +5,4 @@ namespace TelegramManager {
 void begin();
 void tick();
 void sendToAll(const String &text);
-}  // namespace TelegramManager
+}  

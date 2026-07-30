@@ -7,9 +7,10 @@ static DHT s_dht(DHT_PIN, DHT_TYPE);
 
 static SensorReadings s_readings;
 static uint32_t s_flameHighSince[FLAME_SENSOR_COUNT] = {0, 0, 0, 0, 0};
+static uint32_t s_bootMs = 0;
 static uint32_t s_lastDhtReadMs = 0;
 static uint32_t s_lastSmokeReadMs = 0;
-static uint32_t s_smokeReadyMs = 0;  // smoke analog reads begin 10s after begin()
+static int s_rawAnalogSmoke = 0;  
 
 static int readSmokeFiltered() {
   uint32_t sum = 0;
@@ -46,35 +47,58 @@ void begin() {
   }
   pinMode(MQ2_PIN, INPUT);
   s_dht.begin();
-  s_readings.smokeRaw = 0;  // hold at 0 during warm-up; real reads start after 10s
-  s_smokeReadyMs = millis() + 10000;
-  LOG_I(TAG, "SensorManager initialized — gas sensor warm-up: 10s");
+  s_readings.smokeRaw = 0;
+  s_readings.temperature = NAN;
+  s_readings.humidity = NAN;
+  s_bootMs = millis();
+  LOG_I(TAG, "SensorManager initialized — gas sensor warm-up: 10s, DHT grace: 3s");
 }
 
 void tick() {
   updateFlameChannels();
 
   if (everyMs(s_lastSmokeReadMs, 100)) {
-    if (millis() >= s_smokeReadyMs) {
-      s_readings.smokeRaw = readSmokeFiltered();
-    }
-    // else: still in 10s warm-up window — keep smokeRaw = 0
+    s_rawAnalogSmoke = readSmokeFiltered();
   }
+
+  bool warmingUp = (millis() - s_bootMs) < 10000;
+  s_readings.smokeRaw = warmingUp ? 0 : s_rawAnalogSmoke;
 
   if (everyMs(s_lastDhtReadMs, Cfg::DHT_READ_PERIOD_MS)) {
     float t = s_dht.readTemperature();
     float h = s_dht.readHumidity();
     if (!isnan(t) && t >= -20.0f && t <= 80.0f) s_readings.temperature = t;
+    else s_readings.temperature = NAN;
+
     if (!isnan(h) && h >= 0.0f && h <= 100.0f) s_readings.humidity = h;
+    else s_readings.humidity = NAN;
   }
 
   SharedState::setSensorData(s_readings.temperature, s_readings.humidity,
                               s_readings.smokeRaw, s_readings.flameDetected);
+
+  static bool s_lastSensorFault = false;
+  bool currentFault = isSensorFault();
+  if (currentFault != s_lastSensorFault) {
+    s_lastSensorFault = currentFault;
+    if (currentFault) {
+      LOG_W(TAG, "Sensor fault DETECTED (DHT or MQ2 missing/unplugged). System in SENSOR_ERROR mode.");
+    } else {
+      LOG_I(TAG, "Sensor fault CLEARED — all sensors responding with valid data. Resuming normal operations.");
+    }
+  }
 }
 
 SensorReadings getReadings() { return s_readings; }
 
-bool isSmokeAboveThreshold() { return s_readings.smokeRaw > Cfg::SMOKE_THRESHOLD; }
+bool isSmokeWarming() {
+  return (millis() - s_bootMs) < 10000;
+}
+
+bool isSmokeAboveThreshold() {
+  if (isSmokeWarming()) return false;  
+  return s_readings.smokeRaw > Cfg::SMOKE_THRESHOLD;
+}
 
 bool isTempHigh() {
   return !isnan(s_readings.temperature) && s_readings.temperature > Cfg::TEMP_HIGH_THRESHOLD_C;
@@ -82,16 +106,14 @@ bool isTempHigh() {
 
 bool isFlameDetected() { return s_readings.flameDetected; }
 
-bool isSmokeWarming() {
-  return millis() < s_smokeReadyMs;
-}
-
 bool isSensorFault() {
-  bool dhtFailed = isnan(s_readings.temperature) || isnan(s_readings.humidity);
-  // During the 10s gas-sensor warm-up, smokeRaw is held at 0 intentionally.
-  // Exclude the smoke leg from the fault check so we don't raise a false sensor error.
-  bool smokeFailed = !isSmokeWarming() && (s_readings.smokeRaw < 50);
-  return dhtFailed && smokeFailed;
+  
+  bool dhtGrace = (millis() - s_bootMs) < 3000;
+  bool dhtFailed = !dhtGrace && (isnan(s_readings.temperature) || isnan(s_readings.humidity));
+
+  bool smokeFailed = (s_rawAnalogSmoke < 50);
+
+  return dhtFailed || smokeFailed;
 }
 
-} 
+}  

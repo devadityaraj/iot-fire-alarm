@@ -130,7 +130,7 @@ void tick() {
 
   if (nowConnected) {
     s_connected = true;
-    return;  // nothing else to do; setWifiStatus already called in onConnected()
+    return;  
   }
 
   if (everyMs(s_lastReconnectAttemptMs, currentBackoffMs())) {
@@ -141,4 +141,4 @@ void tick() {
 bool isConnected() { return s_connected; }
 String getCurrentSsid() { return s_connected ? WiFi.SSID() : String(""); }
 
-}  // namespace WiFiManagerEx
+}  

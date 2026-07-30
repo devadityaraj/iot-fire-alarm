@@ -7,4 +7,4 @@ void tick();
 void setMode(LEDMode mode);
 LEDMode getMode();
 bool isConnectBlinkDone();
-}  // namespace LEDManager
+}  

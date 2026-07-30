@@ -8,4 +8,4 @@ bool waitForInternet(uint32_t timeoutMs = 8000);
 void tick();
 bool isConnected();
 String getCurrentSsid();
-}  // namespace WiFiManagerEx
+}  

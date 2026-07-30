@@ -4,7 +4,7 @@
 
 namespace Cfg {
 static constexpr uint32_t FLAME_TRIGGER_MS = 300;
-static constexpr uint16_t SMOKE_THRESHOLD = 2000;
+static constexpr uint16_t SMOKE_THRESHOLD = 3000;
 static constexpr float TEMP_HIGH_THRESHOLD_C = 45.0f;
 
 static constexpr uint32_t SENSOR_TASK_PERIOD_MS = 10;
@@ -12,10 +12,10 @@ static constexpr uint32_t LED_TASK_PERIOD_MS = 20;
 static constexpr uint32_t BUTTON_TASK_PERIOD_MS = 20;
 static constexpr uint32_t ALARM_TASK_PERIOD_MS = 50;
 static constexpr uint32_t DHT_READ_PERIOD_MS = 2000;
-// Firebase telemetry upload intervals
-static constexpr uint32_t FIREBASE_TEMP_UPLOAD_MS    = 5000;   // all sensor data: every 5s
-static constexpr uint32_t FIREBASE_HUM_UPLOAD_MS     = 5000;   // humidity + smoke: every 5s
-static constexpr uint32_t FIREBASE_ALERT_POLL_MS     = 3000;   // remote reset poll: every 3s
+
+static constexpr uint32_t FIREBASE_TEMP_UPLOAD_MS    = 5000;   
+static constexpr uint32_t FIREBASE_HUM_UPLOAD_MS     = 5000;   
+static constexpr uint32_t FIREBASE_ALERT_POLL_MS     = 3000;   
 
 static constexpr uint32_t WIFI_RECONNECT_PERIOD_MS        = 10000;
 static constexpr uint32_t WIFI_RECONNECT_MAX_BACKOFF_MS   = 60000;
@@ -46,7 +46,7 @@ static constexpr const char *AP_SSID = "Smart IoT Fire Alarm";
 static constexpr const char *AP_IP = "192.168.4.1";
 static constexpr const char *NVS_NAMESPACE = "firealarm";
 static constexpr uint16_t WEB_SERVER_PORT = 80;
-}  // namespace Cfg
+}  
 
 enum class SystemState : uint8_t {
   BOOT,
@@ -71,9 +71,9 @@ enum class LEDMode : uint8_t {
   RESET_BREATHING,
   SETUP_RAINBOW,
   SETUP_AMBER,
-  AUTH_ERROR,   // last 2 LEDs breathing red, rest green — Firebase auth failed
-  DB_ERROR,     // last 2 LEDs fast-blinking red, rest green — RTDB write failed
-  SENSOR_ERROR  // LEDs 1,2 and 7,8 flash red, internal LED blinks — Sensor fault
+  AUTH_ERROR,   
+  DB_ERROR,     
+  SENSOR_ERROR  
 };
 
 const char *alertTypeToString(AlertType type);
@@ -84,8 +84,6 @@ struct WiFiCredential {
   String password;
 };
 
-// Named FirebaseCredentials (not FirebaseConfig) to avoid a symbol clash with
-// the FirebaseConfig class from the Firebase ESP Client library.
 struct FirebaseCredentials {
   String apiKey;
   String authDomain;
